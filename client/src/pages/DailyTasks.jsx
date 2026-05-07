@@ -74,58 +74,79 @@ const DailyTasks = () => {
     const text = currentTask.word;
     const lang = LOCALE_MAP[language] || 'en-US';
 
-    // 1. Try Browser Speech Synthesis first (with improved voice selection)
+    // Cancel any ongoing speech
     window.speechSynthesis.cancel();
+
+    // 1. Setup SpeechSynthesisUtterance
     const utter = new SpeechSynthesisUtterance(text);
     utter.lang = lang;
 
+    // Load voices and select the best one
     const voices = window.speechSynthesis.getVoices();
     const langPrefix = lang.split('-')[0];
     
-    // Find high-quality voices (Google or Microsoft)
     const preferredVoice = voices.find(v => 
       v.lang.startsWith(langPrefix) && 
       (v.name.includes('Google') || v.name.includes('Microsoft') || v.name.includes('Natural'))
-    );
-    const fallbackVoice = voices.find(v => v.lang.startsWith(langPrefix));
+    ) || voices.find(v => v.lang.startsWith(langPrefix));
 
-    if (preferredVoice || fallbackVoice) {
-      utter.voice = preferredVoice || fallbackVoice;
+    if (preferredVoice) {
+      utter.voice = preferredVoice;
     }
 
     const speedMap = { 'Slow': 0.6, 'Normal': 1.0, 'Fast': 1.3 };
-    utter.rate = speedMap[user?.voiceSpeed] || 0.8;
+    utter.rate = speedMap[user?.voiceSpeed] || 0.9;
     utter.pitch = 1.0;
     utter.volume = (user?.volume !== undefined ? user.volume : 100) / 100;
 
-    utter.onstart = () => setIsSpeaking(true);
-    utter.onend = () => setIsSpeaking(false);
+    utter.onstart = () => {
+      console.log("🔊 Started speaking via Browser TTS");
+      setIsSpeaking(true);
+    };
+    
+    utter.onend = () => {
+      setIsSpeaking(false);
+    };
     
     utter.onerror = (e) => {
-      console.warn("SpeechSynthesis Error, falling back to Google TTS:", e);
-      // 2. Fallback to Google Translate TTS for clearer voice if browser fails
-      const googleTTSUrl = `https://translate.google.com/translate_tts?ie=UTF-8&q=${encodeURIComponent(text)}&tl=${lang.split('-')[0]}&client=tw-ob`;
+      console.warn("Browser TTS Error, using Fallback:", e);
+      playFallbackTTS(text, lang);
+    };
+
+    // Helper for fallback
+    const playFallbackTTS = (txt, l) => {
+      // Fallback to Google Translate TTS for clearer voice if browser fails
+      const googleTTSUrl = `https://translate.google.com/translate_tts?ie=UTF-8&q=${encodeURIComponent(txt)}&tl=${l.split('-')[0]}&client=tw-ob`;
       const audio = new Audio(googleTTSUrl);
-      audio.onplay = () => setIsSpeaking(true);
+      audio.volume = (user?.volume !== undefined ? user.volume : 100) / 100;
+      
+      audio.onplay = () => {
+        console.log("🔊 Started speaking via Google TTS Fallback");
+        setIsSpeaking(true);
+      };
       audio.onended = () => setIsSpeaking(false);
-      audio.onerror = () => setIsSpeaking(false);
+      audio.onerror = (err) => {
+        console.error("Google TTS failed:", err);
+        setIsSpeaking(false);
+      };
+      
       audio.play().catch(err => {
-        console.error("Google TTS failed as well:", err);
+        console.error("Audio playback blocked or failed:", err);
         setIsSpeaking(false);
       });
     };
 
+    // Execute Browser TTS
     window.speechSynthesis.speak(utter);
 
-    // Some browsers (like Chrome on mobile) require a user gesture to start synthesis.
-    // If it doesn't start within 100ms, it might be stuck.
+    // Watchdog: If browser TTS is silent or stuck
     setTimeout(() => {
-      if (window.speechSynthesis.speaking && !isSpeaking) {
-        setIsSpeaking(true);
+      if (!window.speechSynthesis.speaking && isSpeaking) {
+        setIsSpeaking(false);
       }
-    }, 100);
+    }, 5000);
 
-  }, [currentTask, language, user, isSpeaking]);
+  }, [currentTask, language, user]);
 
   const markTaskComplete = useCallback(async () => {
     setTaskStatus('success');

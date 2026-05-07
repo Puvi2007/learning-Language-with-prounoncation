@@ -12,7 +12,7 @@ const LOCALE_MAP = {
   Telugu: 'te-IN',
   Kannada: 'kn-IN',
   Malayalam: 'ml-IN',
-  Sanskrit: 'sa-IN',
+  Sanskrit: 'sa-IN', // Some browsers might need hi-IN fallback for Sanskrit
   English: 'en-US',
   French: 'fr-FR'
 };
@@ -33,55 +33,69 @@ const useSpeechRecognition = ({ targetWord, language, onSuccess, onError }) => {
 
     // Stop any existing recognition
     if (recognitionRef.current) {
-      recognitionRef.current.stop();
+      try {
+        recognitionRef.current.stop();
+      } catch (e) {
+        console.warn("Error stopping existing recognition:", e);
+      }
     }
 
     const recognition = new SpeechRecognition();
-    recognition.lang = LOCALE_MAP[language] || 'en-US';
+    
+    // Recognition language setup
+    let recognitionLang = LOCALE_MAP[language] || 'en-US';
+    recognition.lang = recognitionLang;
+    
     recognition.continuous = false;
-    recognition.interimResults = false;
+    recognition.interimResults = true; // Changed to true for better feedback
     recognition.maxAlternatives = 5;
 
     recognition.onstart = () => {
       setIsListening(true);
       setError('');
       setTranscript('');
+      console.log('🎤 Listening in:', recognition.lang);
     };
 
     recognition.onresult = (event) => {
-      const results = Array.from(event.results[0]);
+      const results = event.results[event.results.length - 1];
+      const isFinal = results.isFinal;
+      const allAlternatives = Array.from(results).map(r => r.transcript.trim().toLowerCase());
+      
+      const bestTranscript = allAlternatives[0];
+      setTranscript(bestTranscript);
 
-      // Get all alternatives
-      const allAlternatives = results.map(r => r.transcript.trim().toLowerCase());
-      console.log('🎤 You said:', allAlternatives);
-      console.log('🎯 Target word:', targetWord);
+      if (isFinal) {
+        console.log('🎤 Final results:', allAlternatives);
+        console.log('🎯 Target word:', targetWord);
 
-      const target = targetWord.trim().toLowerCase();
-      const spokenText = allAlternatives[0]; // best match
-      setTranscript(spokenText);
+        const target = targetWord.trim().toLowerCase();
 
-      // Match checking - multiple strategies
-      const isMatch = allAlternatives.some(spoken => {
-        // Exact match
-        if (spoken === target) return true;
-        // Contains match
-        if (spoken.includes(target)) return true;
-        if (target.includes(spoken)) return true;
-        // Remove spaces and check
-        if (spoken.replace(/\s/g, '') === target.replace(/\s/g, '')) return true;
-        // First word match (for multi-word targets)
-        const spokenFirst = spoken.split(' ')[0];
-        const targetFirst = target.split(' ')[0];
-        if (spokenFirst === targetFirst && spokenFirst.length > 1) return true;
-        return false;
-      });
+        // Match checking - multiple strategies
+        const isMatch = allAlternatives.some(spoken => {
+          // Exact match
+          if (spoken === target) return true;
+          // Contains match
+          if (spoken.includes(target)) return true;
+          if (target.includes(spoken)) return true;
+          // Remove punctuation and spaces and check
+          const cleanSpoken = spoken.replace(/[.,\/#!$%\^&\*;:{}=\-_`~()]/g,"").replace(/\s/g, '');
+          const cleanTarget = target.replace(/[.,\/#!$%\^&\*;:{}=\-_`~()]/g,"").replace(/\s/g, '');
+          if (cleanSpoken === cleanTarget) return true;
+          // First word match (for multi-word targets)
+          const spokenFirst = spoken.split(' ')[0];
+          const targetFirst = target.split(' ')[0];
+          if (spokenFirst === targetFirst && spokenFirst.length > 1) return true;
+          return false;
+        });
 
-      if (isMatch) {
-        console.log('✅ MATCH!');
-        onSuccess(spokenText);
-      } else {
-        console.log('❌ NO MATCH');
-        onError(spokenText);
+        if (isMatch) {
+          console.log('✅ MATCH!');
+          onSuccess(bestTranscript);
+        } else {
+          console.log('❌ NO MATCH');
+          onError(bestTranscript);
+        }
       }
     };
 
