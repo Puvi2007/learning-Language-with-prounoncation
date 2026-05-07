@@ -79,8 +79,8 @@ const useSpeechRecognition = ({ targetWord, language, onSuccess, onError }) => {
           if (spoken.includes(target)) return true;
           if (target.includes(spoken)) return true;
           // Remove punctuation and spaces and check
-          const cleanSpoken = spoken.replace(/[.,\/#!$%\^&\*;:{}=\-_`~()]/g,"").replace(/\s/g, '');
-          const cleanTarget = target.replace(/[.,\/#!$%\^&\*;:{}=\-_`~()]/g,"").replace(/\s/g, '');
+          const cleanSpoken = spoken.replace(/[.,/#!$%^&*;:{}=\-_`~()]/g,"").replace(/\s/g, '');
+          const cleanTarget = target.replace(/[.,/#!$%^&*;:{}=\-_`~()]/g,"").replace(/\s/g, '');
           if (cleanSpoken === cleanTarget) return true;
           // First word match (for multi-word targets)
           const spokenFirst = spoken.split(' ')[0];

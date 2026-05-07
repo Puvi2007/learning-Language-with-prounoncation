@@ -141,7 +141,7 @@ const DailyTasks = () => {
 
     // Watchdog: If browser TTS is silent or stuck
     setTimeout(() => {
-      if (!window.speechSynthesis.speaking && isSpeaking) {
+      if (!window.speechSynthesis.speaking) {
         setIsSpeaking(false);
       }
     }, 5000);
@@ -335,13 +335,13 @@ const DailyTasks = () => {
 
               {!isListening && taskStatus === 'success' && (
                 <div style={{ color: '#065f46', fontWeight: 700, fontSize: '20px', background: 'var(--accent-light)', padding: '14px 28px', borderRadius: '12px', border: '2px solid #10b981' }}>
-                  ✅ Excellent! Moving to next task...
+                  ✅ {statusMessage || 'Excellent! Moving to next task...'}
                 </div>
               )}
 
               {!isListening && taskStatus === 'error' && (
                 <div style={{ color: '#b91c1c', fontWeight: 600, fontSize: '16px', background: 'var(--danger-light)', padding: '14px 28px', borderRadius: '12px' }}>
-                  ❌ Wrong pronunciation — AI will replay, try again!
+                  ❌ {statusMessage || 'Wrong pronunciation — AI will replay, try again!'}
                 </div>
               )}
             </div>
