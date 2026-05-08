@@ -5,29 +5,23 @@ import api from '../utils/api';
 
 const LANGUAGES = [
   { name: 'Tamil', flag: '🌺', script: 'தமிழ்', family: 'Dravidian' },
-  { name: 'Hindi', flag: '🪷', script: 'हिन्दी', family: 'Indo-Aryan' },
-  { name: 'Telugu', flag: '🌸', script: 'తెలుగు', family: 'Dravidian' },
-  { name: 'Kannada', flag: '🌼', script: 'ಕನ್ನಡ', family: 'Dravidian' },
-  { name: 'Malayalam', flag: '🌴', script: 'മലയാളം', family: 'Dravidian' },
-  { name: 'Sanskrit', flag: '📿', script: 'संस्कृतम्', family: 'Indo-Aryan' },
-  { name: 'English', flag: '🌍', script: 'English', family: 'Germanic' },
-  { name: 'French', flag: '🥐', script: 'Français', family: 'Romance' }
+  { name: 'Telugu', flag: '🌸', script: 'తెలుగు', family: 'Dravidian' }
 ];
 
 const LanguageSelect = () => {
   const [selected, setSelected] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
-  
+
   const navigate = useNavigate();
   const { updateUser } = useAuth();
 
   const handleSubmit = async () => {
     if (!selected) return setError('Please select a language.');
-    
+
     setLoading(true);
     setError('');
-    
+
     try {
       await api.post('/language/select', { language: selected });
       updateUser({ selectedLanguage: selected });
@@ -48,21 +42,21 @@ const LanguageSelect = () => {
 
       {error && <div className="text-danger" style={{ textAlign: 'center', marginBottom: '24px' }}>{error}</div>}
 
-      <div style={{ 
-        display: 'grid', 
-        gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', 
+      <div style={{
+        display: 'grid',
+        gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))',
         gap: '20px',
         marginBottom: '40px'
       }}>
         {LANGUAGES.map((lang) => {
           const isSelected = selected === lang.name;
           return (
-            <div 
+            <div
               key={lang.name}
               onClick={() => setSelected(lang.name)}
               className="card"
-              style={{ 
-                cursor: 'pointer', 
+              style={{
+                cursor: 'pointer',
                 border: isSelected ? '1px solid var(--primary)' : '1px solid var(--border)',
                 transform: isSelected ? 'translateY(-8px)' : 'none',
                 boxShadow: isSelected ? 'var(--primary-glow)' : 'var(--shadow)',
@@ -80,9 +74,9 @@ const LanguageSelect = () => {
       </div>
 
       <div style={{ textAlign: 'center', marginTop: 'auto' }}>
-        <button 
-          onClick={handleSubmit} 
-          className="btn btn-primary" 
+        <button
+          onClick={handleSubmit}
+          className="btn btn-primary"
           disabled={!selected || loading}
           style={{ padding: '16px 48px', fontSize: '18px' }}
         >

@@ -35,7 +35,22 @@ const login = async (req, res) => {
         if (!isMatch) return res.status(401).json({ success: false, message: 'Invalid email or password.' });
         const progress = await Progress.findOne({ user: user._id, language: user.selectedLanguage });
         const token = generateToken(user._id);
-        res.json({ success: true, token, user: { id: user._id, username: user.username, email: user.email, selectedLanguage: user.selectedLanguage }, progress: progress ? { currentDay: progress.currentDay, overallProgress: progress.overallProgress, currentStreak: progress.currentStreak, isCompleted: progress.isCompleted } : null });
+        res.json({ 
+            success: true, 
+            token, 
+            user: { 
+                id: user._id, 
+                username: user.username, 
+                email: user.email, 
+                selectedLanguage: user.selectedLanguage 
+            }, 
+            progress: progress ? { 
+                currentDay: progress.currentDay, 
+                progressPercentage: progress.progressPercentage, 
+                streakCount: progress.streakCount, 
+                isCompleted: progress.isCompleted 
+            } : null 
+        });
     } catch (error) {
         res.status(500).json({ success: false, message: 'Server error during login.' });
     }

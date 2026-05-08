@@ -4,23 +4,22 @@ const ProgressSchema = new mongoose.Schema({
   user: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
   language: { type: String, required: true },
   currentDay: { type: Number, default: 1 },
-  completedTasks: { type: Map, of: [Number], default: {} },
-  completedDays: [{ type: Number }],
-  currentStreak: { type: Number, default: 0 },
-  longestStreak: { type: Number, default: 0 },
+  completedActivities: { type: Map, of: [Number], default: {} }, // Day -> Array of Activity Indices
+  completedDays: [{ type: Number }], // Array of completed day numbers (1-14)
+  streakCount: { type: Number, default: 0 },
   lastActivityDate: { type: Date },
-  overallProgress: { type: Number, default: 0 },
+  progressPercentage: { type: Number, default: 0 },
   isCompleted: { type: Boolean, default: false },
   completedAt: { type: Date },
 }, { timestamps: true });
 
 ProgressSchema.methods.calculateProgress = function() {
-  const totalTasks = 180 * 10;
+  const totalActivities = 14 * 10;
   let completedCount = 0;
-  for (let [, tasks] of this.completedTasks) {
-    completedCount += tasks.length;
+  for (let [, activities] of this.completedActivities) {
+    completedCount += activities.length;
   }
-  this.overallProgress = Math.round((completedCount / totalTasks) * 100);
+  this.progressPercentage = Math.round((completedCount / totalActivities) * 100);
 };
 
 module.exports = mongoose.model('Progress', ProgressSchema);

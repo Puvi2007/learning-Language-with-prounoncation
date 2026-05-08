@@ -1,9 +1,9 @@
 const express = require('express');
 const router = express.Router();
-const { getDayTasks, completeTask } = require('../controllers/taskController');
+const { getDayActivities, completeActivity } = require('../controllers/taskController');
 const { protect } = require('../middleware/authMiddleware');
 
-router.get('/:language/:day', protect, getDayTasks);
-router.post('/complete', protect, completeTask);
+router.get('/:language/:day', protect, getDayActivities);
+router.post('/complete', protect, completeActivity);
 
 module.exports = router;

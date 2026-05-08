@@ -8,6 +8,7 @@ const useTheme = (settings) => {
         
         // Theme Mode
         if (settings.themeMode === 'light') {
+            root.classList.remove('dark');
             root.style.setProperty('--bg', '#f8fafc');
             root.style.setProperty('--surface', 'rgba(255, 255, 255, 0.7)');
             root.style.setProperty('--surface-solid', '#ffffff');
@@ -15,6 +16,7 @@ const useTheme = (settings) => {
             root.style.setProperty('--text-muted', '#64748b');
             root.style.setProperty('--border', 'rgba(0, 0, 0, 0.1)');
         } else {
+            root.classList.add('dark');
             root.style.setProperty('--bg', '#0b0f19');
             root.style.setProperty('--surface', 'rgba(30, 41, 59, 0.4)');
             root.style.setProperty('--surface-solid', '#1e293b');

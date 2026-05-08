@@ -6,18 +6,16 @@ import api from '../utils/api';
 
 const LOCALE_MAP = {
   Tamil: 'ta-IN',
-  Hindi: 'hi-IN',
   Telugu: 'te-IN',
-  Kannada: 'kn-IN',
+  Hindi: 'hi-IN',
   Malayalam: 'ml-IN',
-  Sanskrit: 'sa-IN',
-  English: 'en-US',
-  French: 'fr-FR'
+  Kannada: 'kn-IN'
 };
 
 const DailyTasks = () => {
   const { language, day } = useParams();
   const navigate = useNavigate();
+  const { user } = useAuth();
 
   const [tasks, setTasks] = useState([]);
   const [currentIndex, setCurrentIndex] = useState(0);
@@ -66,111 +64,80 @@ const DailyTasks = () => {
 
   const currentTask = tasks[currentIndex];
 
-  const { user } = useAuth();
-
   const speakWord = useCallback(() => {
     if (!currentTask) return;
 
-    const text = currentTask.word;
-    const lang = LOCALE_MAP[language] || 'en-US';
+    const text = currentTask.nativeWord || currentTask.word;
+    const lang = LOCALE_MAP[language] || 'ta-IN';
+    const langPrefix = lang.split('-')[0].toLowerCase();
 
-    // Cancel any ongoing speech
+    // Reset synthesis
     window.speechSynthesis.cancel();
+    setIsSpeaking(true);
 
-    // 1. Setup SpeechSynthesisUtterance
+    const playFallbackTTS = () => {
+      console.log("🔊 Using Google TTS Fallback for:", language);
+      const clients = ['tw-ob', 'gtx', 'at'];
+      const playWithClient = (clientIndex) => {
+        if (clientIndex >= clients.length) {
+          setIsSpeaking(false);
+          return;
+        }
+        const client = clients[clientIndex];
+        const googleTTSUrl = `https://translate.google.com/translate_tts?ie=UTF-8&q=${encodeURIComponent(text)}&tl=${langPrefix}&client=${client}`;
+        const audio = new Audio(googleTTSUrl);
+        audio.volume = (user?.volume !== undefined ? user.volume : 100) / 100;
+        audio.onended = () => setIsSpeaking(false);
+        audio.onerror = () => playWithClient(clientIndex + 1);
+        audio.play().catch(() => playWithClient(clientIndex + 1));
+      };
+      playWithClient(0);
+    };
+
+    // 1. Try Browser Synthesis
     const utter = new SpeechSynthesisUtterance(text);
     utter.lang = lang;
-
-    // Load voices and select the best one
     const voices = window.speechSynthesis.getVoices();
-    const langPrefix = lang.split('-')[0];
-    
-    const preferredVoice = voices.find(v => 
-      v.lang.startsWith(langPrefix) && 
-      (v.name.includes('Google') || v.name.includes('Microsoft') || v.name.includes('Natural'))
-    ) || voices.find(v => v.lang.startsWith(langPrefix));
+    const voice = voices.find(v => v.lang === lang) || voices.find(v => v.lang.startsWith(langPrefix));
 
-    if (preferredVoice) {
-      utter.voice = preferredVoice;
+    if (voice) {
+      utter.voice = voice;
+      const speedMap = { 'Slow': 0.7, 'Normal': 1.0, 'Fast': 1.3 };
+      utter.rate = speedMap[user?.voiceSpeed] || 0.9;
+      utter.onend = () => setIsSpeaking(false);
+      utter.onerror = () => playFallbackTTS();
+      window.speechSynthesis.speak(utter);
+    } else {
+      playFallbackTTS();
     }
-
-    const speedMap = { 'Slow': 0.6, 'Normal': 1.0, 'Fast': 1.3 };
-    utter.rate = speedMap[user?.voiceSpeed] || 0.9;
-    utter.pitch = 1.0;
-    utter.volume = (user?.volume !== undefined ? user.volume : 100) / 100;
-
-    utter.onstart = () => {
-      console.log("🔊 Started speaking via Browser TTS");
-      setIsSpeaking(true);
-    };
-    
-    utter.onend = () => {
-      setIsSpeaking(false);
-    };
-    
-    utter.onerror = (e) => {
-      console.warn("Browser TTS Error, using Fallback:", e);
-      playFallbackTTS(text, lang);
-    };
-
-    // Helper for fallback
-    const playFallbackTTS = (txt, l) => {
-      // Fallback to Google Translate TTS for clearer voice if browser fails
-      const googleTTSUrl = `https://translate.google.com/translate_tts?ie=UTF-8&q=${encodeURIComponent(txt)}&tl=${l.split('-')[0]}&client=tw-ob`;
-      const audio = new Audio(googleTTSUrl);
-      audio.volume = (user?.volume !== undefined ? user.volume : 100) / 100;
-      
-      audio.onplay = () => {
-        console.log("🔊 Started speaking via Google TTS Fallback");
-        setIsSpeaking(true);
-      };
-      audio.onended = () => setIsSpeaking(false);
-      audio.onerror = (err) => {
-        console.error("Google TTS failed:", err);
-        setIsSpeaking(false);
-      };
-      
-      audio.play().catch(err => {
-        console.error("Audio playback blocked or failed:", err);
-        setIsSpeaking(false);
-      });
-    };
-
-    // Execute Browser TTS
-    window.speechSynthesis.speak(utter);
-
-    // Watchdog: If browser TTS is silent or stuck
-    setTimeout(() => {
-      if (!window.speechSynthesis.speaking) {
-        setIsSpeaking(false);
-      }
-    }, 5000);
-
   }, [currentTask, language, user]);
 
   const markTaskComplete = useCallback(async () => {
     setTaskStatus('success');
     setStatusMessage('Excellent pronunciation!');
     try {
-      await api.post('/tasks/complete', {
+      const { data } = await api.post('/tasks/complete', {
         language,
         day,
         taskIndex: currentIndex
       });
+      
       const newCompleted = [...completedIndices, currentIndex];
       setCompletedIndices(newCompleted);
-      if (newCompleted.length === tasks.length) {
-        setTimeout(() => setDayDone(true), 2000);
-      } else {
-        setTimeout(() => {
+      
+      // AUTO-ADVANCE logic
+      setTimeout(() => {
+        if (newCompleted.length === tasks.length || data.dayJustCompleted) {
+          setDayDone(true);
+        } else {
           setTaskStatus('idle');
           setStatusMessage('');
           const nextIncomplete = tasks.findIndex(
             (_, i) => !newCompleted.includes(i)
           );
           if (nextIncomplete !== -1) setCurrentIndex(nextIncomplete);
-        }, 2000);
-      }
+        }
+      }, 1500);
     } catch (error) {
       console.error('Error saving progress', error);
     }
@@ -187,7 +154,7 @@ const DailyTasks = () => {
   }, [speakWord]);
 
   const { isListening, startListening, stopListening } = useSpeechRecognition({
-    targetWord: currentTask?.word || '',
+    targetActivity: currentTask,
     language,
     onSuccess: markTaskComplete,
     onError: handleSpeechError
@@ -198,18 +165,18 @@ const DailyTasks = () => {
   if (dayDone) {
     return (
       <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '24px', background: 'var(--bg)' }}>
-        <div style={{ maxWidth: '500px', width: '100%', textAlign: 'center', padding: '40px', background: 'var(--surface)', borderRadius: '20px', boxShadow: 'var(--shadow-lg)' }}>
-          <div style={{ fontSize: '72px', marginBottom: '24px' }}>🎉</div>
-          <h2 style={{ marginBottom: '16px', color: 'var(--primary)', fontSize: '32px' }}>Day {day} Completed!</h2>
-          <p style={{ marginBottom: '32px', color: 'var(--text-muted)', fontSize: '16px' }}>
-            Amazing job! You've completed all 10 tasks for today. Come back tomorrow for Day {parseInt(day) + 1}!
+        <div style={{ maxWidth: '500px', width: '100%', textAlign: 'center', padding: '40px', background: 'var(--surface)', borderRadius: '20px', boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.1)' }}>
+          <div style={{ fontSize: '72px', marginBottom: '24px' }}>🎯</div>
+          <h2 style={{ marginBottom: '16px', color: 'var(--primary)', fontSize: '32px', fontWeight: 900 }}>Day {day} Mastered!</h2>
+          <p style={{ marginBottom: '32px', color: 'var(--text-muted)', fontSize: '16px', fontWeight: 600 }}>
+            Amazing job! You've successfully completed all tasks for today.
           </p>
           <button
             onClick={() => navigate('/dashboard')}
             className="btn btn-primary"
-            style={{ width: '100%', justifyContent: 'center', fontSize: '16px', padding: '14px' }}
+            style={{ width: '100%', justifyContent: 'center', fontSize: '18px', padding: '16px', borderRadius: '16px', fontWeight: 900 }}
           >
-            🏠 Return to Dashboard
+            Continue to Dashboard
           </button>
         </div>
       </div>
@@ -309,9 +276,14 @@ const DailyTasks = () => {
                 onClick={speakWord}
                 disabled={isSpeaking}
                 className="btn btn-outline"
-                style={{ minWidth: '180px', fontSize: '16px', padding: '14px 24px' }}
+                style={{ minWidth: '180px', fontSize: '16px', padding: '14px 24px', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px' }}
               >
-                {isSpeaking ? '🔊 Speaking...' : '🎧 Listen to AI'}
+                {isSpeaking ? (
+                   <>
+                     <div className="spinner" style={{ width: '18px', height: '18px', borderWidth: '2px' }} />
+                     Speaking...
+                   </>
+                ) : '🎧 Listen to AI'}
               </button>
 
               {/* Speak Button */}
@@ -334,14 +306,19 @@ const DailyTasks = () => {
               )}
 
               {!isListening && taskStatus === 'success' && (
-                <div style={{ color: '#065f46', fontWeight: 700, fontSize: '20px', background: 'var(--accent-light)', padding: '14px 28px', borderRadius: '12px', border: '2px solid #10b981' }}>
-                  ✅ {statusMessage || 'Excellent! Moving to next task...'}
+                <div style={{ color: '#065f46', fontWeight: 800, fontSize: '20px', background: '#dcfce7', padding: '16px 32px', borderRadius: '16px', border: '2px solid #22c55e' }}>
+                  ✅ Correct! Moving to next...
                 </div>
               )}
 
               {!isListening && taskStatus === 'error' && (
-                <div style={{ color: '#b91c1c', fontWeight: 600, fontSize: '16px', background: 'var(--danger-light)', padding: '14px 28px', borderRadius: '12px' }}>
-                  ❌ {statusMessage || 'Wrong pronunciation — AI will replay, try again!'}
+                <div style={{ textAlign: 'center' }}>
+                  <div style={{ color: '#b91c1c', fontWeight: 800, fontSize: '18px', background: '#fee2e2', padding: '16px 32px', borderRadius: '16px', border: '2px solid #ef4444', marginBottom: '8px' }}>
+                    ❌ Try again! Match the AI pronunciation.
+                  </div>
+                  <div style={{ fontSize: '12px', color: 'var(--text-muted)', fontWeight: 600 }}>
+                    Expected: <span style={{ color: 'var(--primary)' }}>{currentTask.nativeWord || currentTask.word}</span>
+                  </div>
                 </div>
               )}
             </div>

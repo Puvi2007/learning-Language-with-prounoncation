@@ -1,6 +1,6 @@
 # 🌐 Learn Language with Pronunciation
 
-Learn Language with Pronunciation is a comprehensive, AI-powered 180-day language learning platform. It leverages the browser's native Web Speech API to provide interactive pronunciation validation, helping users master 8 different languages through daily guided tasks. Build a daily habit, track your streak, and earn a certificate upon completion!
+Learn Language with Pronunciation is a comprehensive, AI-powered 180-day language learning platform. It leverages the browser's native Web Speech API to provide interactive pronunciation validation, helping users master Tamil and Telugu through daily guided tasks. Build a daily habit, track your streak, and earn a certificate upon completion!
 
 ## 🚀 Tech Stack
 
@@ -114,13 +114,7 @@ Open your browser and navigate to: **[http://localhost:3000](http://localhost:30
 | Language | Script | Family | Status |
 | :--- | :--- | :--- | :--- |
 | **Tamil** | தமிழ் | Dravidian | Active |
-| **Hindi** | हिन्दी | Indo-Aryan | Active |
 | **Telugu** | తెలుగు | Dravidian | Active |
-| **Kannada** | ಕನ್ನಡ | Dravidian | Active |
-| **Malayalam** | മലയാളം | Dravidian | Active |
-| **Sanskrit** | संस्कृतम् | Indo-Aryan | Active |
-| **English** | English | Germanic | Active |
-| **French** | Français | Romance | Active |
 
 ---
 

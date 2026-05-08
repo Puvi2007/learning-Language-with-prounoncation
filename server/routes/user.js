@@ -14,6 +14,11 @@ router.put('/update', protect, async (req, res) => {
             email: req.body.email,
             bio: req.body.bio,
             phone: req.body.phone,
+            profileImage: req.body.profileImage,
+            role: req.body.role,
+            streak: req.body.streak,
+            xp: req.body.xp,
+            achievements: req.body.achievements,
             themeMode: req.body.themeMode,
             themeColor: req.body.themeColor,
             fontSize: req.body.fontSize,
@@ -23,7 +28,10 @@ router.put('/update', protect, async (req, res) => {
             captionsEnabled: req.body.captionsEnabled,
             autoUpdatesEnabled: req.body.autoUpdatesEnabled,
             region: req.body.region,
-            appLanguage: req.body.appLanguage
+            appLanguage: req.body.appLanguage,
+            selectedLanguage: req.body.selectedLanguage,
+            lastActivityDate: req.body.lastActivityDate,
+            isActive: req.body.isActive
         };
 
         // Remove undefined fields

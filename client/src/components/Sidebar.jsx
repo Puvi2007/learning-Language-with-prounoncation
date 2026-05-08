@@ -1,125 +1,94 @@
-import React, { useState } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import React from 'react';
+import { Link, useLocation, useNavigate } from 'react-router-dom';
+import { motion } from 'framer-motion';
+import { 
+  Home, BookOpen, User, Settings, LogOut, Languages, 
+  Sparkles 
+} from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
-import ProgressBar from './ProgressBar';
 
-const Sidebar = ({ progress }) => {
+const Sidebar = () => {
   const { user, logout } = useAuth();
+  const location = useLocation();
   const navigate = useNavigate();
-  const [open, setOpen] = useState(false);
 
-  const toggleSidebar = () => setOpen(!open);
-  const closeSidebar = () => setOpen(false);
+  const menuItems = [
+    { icon: <Home size={24} />, label: 'Dashboard', path: '/dashboard' },
+    { icon: <BookOpen size={24} />, label: 'Start Course', path: '/start-course' },
+    { icon: <User size={24} />, label: 'Profile', path: '/profile' },
+    { icon: <Settings size={24} />, label: 'Settings', path: '/settings' },
+  ];
 
   const handleLogout = () => {
     logout();
-    navigate('/login');
+    navigate('/');
   };
 
   return (
-    <>
-      <button 
-        onClick={toggleSidebar}
-        style={{
-          position: 'fixed',
-          top: '16px',
-          left: '16px',
-          zIndex: 1000,
-          background: 'var(--surface)',
-          backdropFilter: 'var(--glass-blur)',
-          WebkitBackdropFilter: 'var(--glass-blur)',
-          border: '1px solid var(--border)',
-          borderRadius: '10px',
-          boxShadow: 'var(--shadow)',
-          width: '44px',
-          height: '44px',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          cursor: 'pointer',
-          fontSize: '20px',
-          color: 'var(--text)'
-        }}
-      >
-        {open ? '✕' : '☰'}
-      </button>
-
-      {open && (
-        <div 
-          onClick={closeSidebar}
-          style={{
-            position: 'fixed',
-            inset: 0,
-            background: 'rgba(0, 0, 0, 0.3)',
-            zIndex: 998
-          }}
-        />
-      )}
-
-      <div 
-        style={{
-          position: 'fixed',
-          top: 0,
-          left: open ? 0 : '-300px',
-          width: '280px',
-          height: '100%',
-          background: 'var(--surface)',
-          backdropFilter: 'var(--glass-blur)',
-          WebkitBackdropFilter: 'var(--glass-blur)',
-          zIndex: 999,
-          boxShadow: 'var(--shadow-lg)',
-          transition: 'left 0.3s ease',
-          display: 'flex',
-          flexDirection: 'column',
-          padding: '24px 20px',
-          borderRight: '1px solid var(--border)'
-        }}
-      >
-        <div style={{ paddingLeft: '50px', marginBottom: '24px' }}>
-          <h2 style={{ color: 'var(--primary)', margin: 0 }}>🌐 LangLearn</h2>
-          <span style={{ fontSize: '12px' }} className="text-muted">Pronunciation Master</span>
+    <div className="fixed left-0 top-0 h-screen w-64 border-r-2 flex flex-col p-6 z-40 hidden lg:flex" style={{ backgroundColor: 'var(--surface-solid)', borderColor: 'var(--border)' }}>
+      {/* Logo */}
+      <div className="flex items-center gap-3 mb-10 px-2">
+        <div className="h-10 w-10 bg-primary rounded-xl flex items-center justify-center shadow-lg shadow-primary/20">
+          <Languages className="text-white" size={24} />
         </div>
+        <span className="text-2xl font-black text-primary tracking-tight">LLWP</span>
+      </div>
 
-        <div style={{
-          background: 'var(--primary-light)',
-          borderRadius: '12px',
-          padding: '14px',
-          marginBottom: '24px'
-        }}>
-          <div style={{ fontWeight: 'bold' }}>{user?.username || 'User'}</div>
-          <div style={{ fontSize: '12px' }} className="text-muted">{user?.email || ''}</div>
-        </div>
+      {/* Navigation */}
+      <nav className="flex-1 space-y-2">
+        {menuItems.map((item) => {
+          const isActive = location.pathname === item.path;
+          return (
+            <Link 
+              key={item.path} 
+              to={item.path}
+              className={`
+                flex items-center justify-between group px-4 py-3 rounded-2xl transition-all
+                ${isActive 
+                  ? 'bg-primary/10 text-primary' 
+                  : 'text-slate-400 hover:bg-primary/5 hover:text-primary'}
+              `}
+            >
+              <div className="flex items-center gap-4">
+                <span className={`transition-transform group-hover:scale-110 ${isActive ? 'text-primary' : ''}`}>
+                  {item.icon}
+                </span>
+                <span className="font-black uppercase tracking-widest text-xs">{item.label}</span>
+              </div>
+              {isActive && (
+                <motion.div layoutId="activeNav" className="h-1.5 w-1.5 rounded-full bg-primary" />
+              )}
+            </Link>
+          );
+        })}
+      </nav>
 
-        <nav style={{ display: 'flex', flexDirection: 'column', gap: '8px', flex: 1 }}>
-          <Link to="/dashboard" onClick={closeSidebar} style={{ textDecoration: 'none', color: 'inherit', padding: '10px 14px', borderRadius: '8px', display: 'flex', alignItems: 'center', gap: '10px' }} className="nav-link">
-            🏠 Dashboard
-          </Link>
-          <Link to="/select-language" onClick={closeSidebar} style={{ textDecoration: 'none', color: 'inherit', padding: '10px 14px', borderRadius: '8px', display: 'flex', alignItems: 'center', gap: '10px' }} className="nav-link">
-            🌍 Select Language
-          </Link>
-          <Link to="/settings" onClick={closeSidebar} style={{ textDecoration: 'none', color: 'inherit', padding: '10px 14px', borderRadius: '8px', display: 'flex', alignItems: 'center', gap: '10px' }} className="nav-link">
-            ⚙️ Settings
-          </Link>
-        </nav>
-
-        {progress && (
-          <div style={{ marginBottom: '24px' }}>
-            <ProgressBar value={progress.overallProgress || 0} showLabel={true} />
-            <div style={{ fontSize: '12px', marginTop: '8px', textAlign: 'center' }} className="text-muted">
-              Current Day: {progress.currentDay || 1} • Streak: {progress.currentStreak || 0} 🔥
+      {/* User Card */}
+      <div className="mt-auto pt-6 border-t-2 border-slate-50 space-y-4">
+        <div className="rounded-3xl p-4 border-2 group cursor-pointer hover:border-primary/20 transition-all" style={{ backgroundColor: 'var(--surface)', borderColor: 'var(--border)' }}>
+          <div className="flex items-center gap-3">
+            <div className="h-12 w-12 rounded-2xl bg-secondary flex items-center justify-center text-white font-black text-xl shadow-inner">
+              {user?.username?.[0]?.toUpperCase()}
+            </div>
+            <div className="flex-1 min-w-0">
+              <p className="font-black truncate uppercase tracking-tighter" style={{ color: 'var(--text)' }}>{user?.username}</p>
+              <div className="flex items-center gap-1 text-accent font-black text-[10px] uppercase">
+                <Sparkles size={10} />
+                <span>{user?.streak || 0} Day Streak</span>
+              </div>
             </div>
           </div>
-        )}
+        </div>
 
         <button 
           onClick={handleLogout}
-          className="btn btn-outline"
-          style={{ width: '100%', marginTop: 'auto' }}
+          className="w-full flex items-center gap-4 px-4 py-3 text-slate-400 hover:text-danger hover:bg-danger/5 rounded-2xl transition-all font-black uppercase tracking-widest text-xs"
         >
+          <LogOut size={20} />
           Logout
         </button>
       </div>
-    </>
+    </div>
   );
 };
 

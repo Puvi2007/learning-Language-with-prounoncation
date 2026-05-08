@@ -7,7 +7,7 @@ const FEATURES = [
   { icon: '📅', title: '180-Day Journey', desc: '10 tasks per day, from alphabet to fluency in 6 months' },
   { icon: '🏆', title: 'Certificate', desc: 'Earn a certificate after completing all 180 days' },
   { icon: '🔥', title: 'Streak Tracking', desc: 'Keep your daily streak alive and build a habit' },
-  { icon: '🌍', title: '8 Languages', desc: 'Tamil, Hindi, Telugu, Kannada, Malayalam, Sanskrit, English, French' }
+  { icon: '🌍', title: '2 Languages', desc: 'Tamil and Telugu' }
 ];
 
 const LandingPage = () => {

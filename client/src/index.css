@@ -1,0 +1,44 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    --radius: 0.5rem;
+  }
+}
+
+@layer base {
+  body {
+    background-color: var(--bg);
+    color: var(--text);
+    transition: background-color 0.3s ease, color 0.3s ease;
+    min-height: 100vh;
+  }
+}
+
+/* Custom Duolingo-style buttons */
+.btn-duo {
+  @apply relative inline-flex items-center justify-center rounded-xl px-6 py-3 text-sm font-bold uppercase tracking-wide transition-all active:translate-y-1;
+  border-bottom-width: 4px;
+}
+
+.btn-duo-primary {
+  @apply bg-primary text-white border-primary-dark hover:bg-primary-light;
+}
+
+.btn-duo-secondary {
+  @apply bg-secondary text-white border-secondary-dark hover:bg-secondary-light;
+}
+
+.btn-duo-accent {
+  @apply bg-accent text-white border-accent-dark hover:bg-accent-light;
+}
+
+.btn-duo-danger {
+  @apply bg-danger text-white border-danger-dark hover:bg-danger-light;
+}
+
+.btn-duo-ghost {
+  @apply bg-transparent text-muted-foreground border-transparent hover:bg-muted active:border-b-0;
+}

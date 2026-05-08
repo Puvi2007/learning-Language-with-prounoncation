@@ -1,114 +1,141 @@
 import { useState, useRef, useCallback } from 'react';
 
-/**
- * useSpeechRecognition Hook
- * Uses browser Web Speech API - works in Chrome only
- * Listens to user speech and compares with target word
- */
-
 const LOCALE_MAP = {
   Tamil: 'ta-IN',
-  Hindi: 'hi-IN',
   Telugu: 'te-IN',
-  Kannada: 'kn-IN',
+  Hindi: 'hi-IN',
   Malayalam: 'ml-IN',
-  Sanskrit: 'sa-IN', // Some browsers might need hi-IN fallback for Sanskrit
-  English: 'en-US',
-  French: 'fr-FR'
+  Kannada: 'kn-IN'
 };
 
-const useSpeechRecognition = ({ targetWord, language, onSuccess, onError }) => {
+const useSpeechRecognition = ({ targetActivity, language, onSuccess, onError }) => {
   const [isListening, setIsListening] = useState(false);
   const [transcript, setTranscript] = useState('');
+  const [accuracy, setAccuracy] = useState(0);
   const [error, setError] = useState('');
   const recognitionRef = useRef(null);
+  const transcriptRef = useRef('');
+
+  const calculateAccuracy = (spoken, activity, langName) => {
+    if (!spoken || !activity) return 0;
+    
+    const normalize = (text) => (text || "").toLowerCase().replace(/[.,/#!$%^&*;:{}=\-_`~()?]/g, "").replace(/\s/g, "").trim();
+
+    const spokenNorm = normalize(spoken);
+    const nativeNorm = normalize(activity.nativeWord);
+    const wordNorm = normalize(activity.word);
+    const transNorm = normalize(activity.transliteration);
+    const meaningNorm = normalize(activity.meaning);
+
+    // 1. Direct match with any variant
+    if (spokenNorm === nativeNorm || spokenNorm === wordNorm || spokenNorm === transNorm || spokenNorm === meaningNorm) return 100;
+
+    // 2. Number matching
+    const numMap = {
+      'one': '1', '1': 'one',
+      'two': '2', '2': 'two',
+      'three': '3', '3': 'three',
+      'four': '4', '4': 'four',
+      'five': '5', '5': 'five',
+      'six': '6', '6': 'six',
+      'seven': '7', '7': 'seven',
+      'eight': '8', '8': 'eight',
+      'nine': '9', '9': 'nine',
+      'ten': '10', '10': 'ten'
+    };
+
+    if (numMap[meaningNorm] === spokenNorm || numMap[spokenNorm] === meaningNorm) return 100;
+
+    // 3. Script Invariance / Benefit of doubt for short native utterances
+    const isLatin = (text) => /^[a-z0-9\s]*$/i.test(text);
+    const spokenIsLatin = isLatin(spokenNorm);
+
+    if (!spokenIsLatin && ['Tamil', 'Telugu', 'Hindi', 'Malayalam', 'Kannada'].includes(langName)) {
+      if (spokenNorm.length >= 1) return 95; 
+    }
+
+    // 4. Substring match
+    if (spokenNorm.length > 2 && (wordNorm.includes(spokenNorm) || nativeNorm.includes(spokenNorm) || spokenNorm.includes(wordNorm) || meaningNorm.includes(spokenNorm))) {
+      return 90;
+    }
+
+    // 5. Fuzzy match logic (Levenshtein)
+    const editDistance = (a, b) => {
+      const matrix = Array.from({ length: b.length + 1 }, (_, i) => [i]);
+      for (let j = 0; j <= a.length; j++) matrix[0][j] = j;
+      for (let i = 1; i <= b.length; i++) {
+        for (let j = 1; j <= a.length; j++) {
+          if (b.charAt(i - 1) === a.charAt(j - 1)) matrix[i][j] = matrix[i - 1][j - 1];
+          else matrix[i][j] = Math.min(matrix[i - 1][j - 1] + 1, matrix[i][j - 1] + 1, matrix[i - 1][j] + 1);
+        }
+      }
+      return matrix[b.length][a.length];
+    };
+
+    const targets = [nativeNorm, wordNorm, transNorm, meaningNorm].filter(Boolean);
+    let bestScore = 0;
+
+    targets.forEach(target => {
+      const dist = editDistance(spokenNorm, target);
+      const longerLength = Math.max(spokenNorm.length, target.length);
+      if (longerLength === 0) return;
+      const score = Math.round(((longerLength - dist) / longerLength) * 100);
+      if (score > bestScore) bestScore = score;
+    });
+    
+    return bestScore;
+  };
 
   const startListening = useCallback(() => {
     const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
 
     if (!SpeechRecognition) {
-      setError('Speech recognition not supported. Use Chrome browser.');
+      setError('Speech recognition not supported in this browser.');
       return;
     }
 
-    // Stop any existing recognition
     if (recognitionRef.current) {
-      try {
-        recognitionRef.current.stop();
-      } catch (e) {
-        console.warn("Error stopping existing recognition:", e);
-      }
+        try { recognitionRef.current.stop(); } catch (e) {}
     }
 
     const recognition = new SpeechRecognition();
-    
-    // Recognition language setup
-    let recognitionLang = LOCALE_MAP[language] || 'en-US';
-    recognition.lang = recognitionLang;
-    
-    recognition.continuous = false;
-    recognition.interimResults = true; // Changed to true for better feedback
-    recognition.maxAlternatives = 5;
+    recognition.lang = LOCALE_MAP[language] || 'en-US';
+    recognition.interimResults = true;
+    recognition.maxAlternatives = 3;
 
     recognition.onstart = () => {
       setIsListening(true);
       setError('');
       setTranscript('');
-      console.log('🎤 Listening in:', recognition.lang);
+      setAccuracy(0);
     };
 
     recognition.onresult = (event) => {
-      const results = event.results[event.results.length - 1];
-      const isFinal = results.isFinal;
-      const allAlternatives = Array.from(results).map(r => r.transcript.trim().toLowerCase());
+      const results = event.results;
+      let currentTranscript = "";
+      for (let i = event.resultIndex; i < results.length; i++) {
+        currentTranscript += results[i][0].transcript;
+      }
       
-      const bestTranscript = allAlternatives[0];
-      setTranscript(bestTranscript);
+      const isFinal = results[results.length - 1].isFinal;
+      setTranscript(currentTranscript);
+      transcriptRef.current = currentTranscript;
 
       if (isFinal) {
-        console.log('🎤 Final results:', allAlternatives);
-        console.log('🎯 Target word:', targetWord);
-
-        const target = targetWord.trim().toLowerCase();
-
-        // Match checking - multiple strategies
-        const isMatch = allAlternatives.some(spoken => {
-          // Exact match
-          if (spoken === target) return true;
-          // Contains match
-          if (spoken.includes(target)) return true;
-          if (target.includes(spoken)) return true;
-          // Remove punctuation and spaces and check
-          const cleanSpoken = spoken.replace(/[.,/#!$%^&*;:{}=\-_`~()]/g,"").replace(/\s/g, '');
-          const cleanTarget = target.replace(/[.,/#!$%^&*;:{}=\-_`~()]/g,"").replace(/\s/g, '');
-          if (cleanSpoken === cleanTarget) return true;
-          // First word match (for multi-word targets)
-          const spokenFirst = spoken.split(' ')[0];
-          const targetFirst = target.split(' ')[0];
-          if (spokenFirst === targetFirst && spokenFirst.length > 1) return true;
-          return false;
-        });
-
-        if (isMatch) {
-          console.log('✅ MATCH!');
-          onSuccess(bestTranscript);
+        const acc = calculateAccuracy(currentTranscript, targetActivity, language);
+        setAccuracy(acc);
+        
+        if (acc >= 70) {
+          onSuccess(currentTranscript, acc);
         } else {
-          console.log('❌ NO MATCH');
-          onError(bestTranscript);
+          onError(currentTranscript, acc);
         }
       }
     };
 
     recognition.onerror = (event) => {
-      console.error('Speech error:', event.error);
       setIsListening(false);
-      if (event.error === 'no-speech') {
-        onError('No speech detected');
-      } else if (event.error === 'not-allowed') {
-        setError('Microphone permission denied. Please allow mic access.');
-      } else {
-        onError(`Error: ${event.error}`);
-      }
+      setError(event.error);
     };
 
     recognition.onend = () => {
@@ -118,16 +145,29 @@ const useSpeechRecognition = ({ targetWord, language, onSuccess, onError }) => {
     recognitionRef.current = recognition;
     recognition.start();
 
-  }, [targetWord, language, onSuccess, onError]);
+  }, [targetActivity, language, onSuccess, onError]);
 
   const stopListening = useCallback(() => {
     if (recognitionRef.current) {
       recognitionRef.current.stop();
       setIsListening(false);
+      
+      // Process the latest transcript even if onresult isFinal hasn't fired
+      setTimeout(() => {
+        const finalTranscript = transcriptRef.current;
+        if (finalTranscript) {
+          const acc = calculateAccuracy(finalTranscript, targetActivity, language);
+          setAccuracy(acc);
+          if (acc >= 70) onSuccess(finalTranscript, acc);
+          else onError(finalTranscript, acc);
+        } else {
+          onError('', 0);
+        }
+      }, 300);
     }
-  }, []);
+  }, [targetActivity, language, onSuccess, onError]);
 
-  return { isListening, transcript, error, startListening, stopListening };
+  return { isListening, transcript, accuracy, error, startListening, stopListening };
 };
 
 export default useSpeechRecognition;

@@ -1,5 +1,6 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import useTheme from '../hooks/useTheme';
+import api from '../utils/api';
 
 const AuthContext = createContext();
 
@@ -48,17 +49,11 @@ export const AuthProvider = ({ children }) => {
 
     if (persist) {
       try {
-        const token = localStorage.getItem('llwp_token');
-        await fetch('http://localhost:5000/api/user/update', {
-          method: 'PUT',
-          headers: {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${token}`
-          },
-          body: JSON.stringify(updatedFields)
-        });
+        await api.put('/user/update', updatedFields);
       } catch (error) {
         console.error("Failed to persist user updates", error);
+        // Rollback on failure? Maybe better to let user know.
+        throw error;
       }
     }
   };

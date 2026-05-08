@@ -9,6 +9,13 @@ const UserSchema = new mongoose.Schema({
     // Profile
     bio: { type: String, default: '' },
     phone: { type: String, default: '' },
+    profileImage: { type: String, default: '' },
+    role: { type: String, enum: ['user', 'admin'], default: 'user' },
+    
+    // Gamification
+    streak: { type: Number, default: 0 },
+    xp: { type: Number, default: 0 },
+    achievements: [{ type: String }],
     
     // Settings
     themeMode: { type: String, enum: ['dark', 'light'], default: 'dark' },
@@ -24,13 +31,17 @@ const UserSchema = new mongoose.Schema({
     captionsEnabled: { type: Boolean, default: false },
     autoUpdatesEnabled: { type: Boolean, default: true },
     region: { type: String, default: 'India' },
-    appLanguage: { type: String, default: 'English' },
+    appLanguage: { type: String, default: 'Tamil' },
 
     resetPasswordToken: { type: String },
     resetPasswordExpire: { type: Date },
-    selectedLanguage: { type: String, enum: ['Tamil','English','French','Telugu','Kannada','Malayalam','Sanskrit','Hindi'], required: false },
-    languageStartDate: { type: Date },
-    isActive: { type: Boolean, default: true }
+    selectedLanguage: { type: String, enum: ['Tamil', 'Telugu'], required: false },
+    lastActivityDate: { type: Date },
+    isActive: { type: Boolean, default: true },
+    activityHistory: [{
+        date: { type: String }, // YYYY-MM-DD
+        count: { type: Number, default: 0 }
+    }]
 }, { timestamps: true });
 
 UserSchema.pre('save', async function(next) {
